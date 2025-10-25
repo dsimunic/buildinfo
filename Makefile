@@ -6,21 +6,38 @@ VERSION_FILE = VERSION
 PREFIX ?= /usr/local
 BINDIR = $(PREFIX)/bin
 
-include buildinfo.mk
-
 EXTRACT_SRC = src/extract-buildinfo.c
 EXTRACT_BIN = extract-buildinfo
+BUILDDIR ?= build
 
 .PHONY: all install clean test
 
 all: $(EXTRACT_BIN)
 
-$(EXTRACT_BIN): $(EXTRACT_SRC)
-	$(CC) $(CFLAGS) $< -o $@
+include buildinfo.mk
 
-install:
+BUILDINFO_SRC = $(BUILDDIR)/buildinfo.c
+
+$(BUILDINFO_SRC): buildinfo.mk $(VERSION_FILE)
+	$(MAKE) -f buildinfo.mk generate-buildinfo \
+		BUILDDIR=$(BUILDDIR) \
+		VERSION_FILE=$(VERSION_FILE) \
+		CC=$(CC)
+
+$(BUILDDIR)/buildinfo.o: $(BUILDINFO_SRC)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/extract-buildinfo.o: $(EXTRACT_SRC)
+	@mkdir -p $(BUILDDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(EXTRACT_BIN): $(BUILDDIR)/extract-buildinfo.o $(BUILDDIR)/buildinfo.o
+	$(CC) $(BUILDDIR)/extract-buildinfo.o $(BUILDDIR)/buildinfo.o -o $@
+
+install: all
 	install -d "$(HOME)/.local/bin"
 	install -m 755 bin/buildinfo "$(HOME)/.local/bin"
+	install -m 755 $(EXTRACT_BIN) "$(HOME)/.local/bin/extract-buildinfo"
 	install -d "$(HOME)/.local/share/buildinfo"
 	install -m 644 templates/* "$(HOME)/.local/share/buildinfo"
 
@@ -44,6 +61,7 @@ uninstall:
 
 clean:
 	rm -f $(EXTRACT_BIN)
+	rm -rf $(BUILDDIR)
 
 # Print current version
 .PHONY: version

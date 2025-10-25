@@ -101,6 +101,7 @@ int extract_elf_buildinfo(FILE *f) {
     free(strtab);
     free(sections);
     fprintf(stderr, "No .buildinfo section found in binary\n");
+    fprintf(stderr, "This binary was not compiled with buildinfo support.\n");
     return 1;
 #else
     fprintf(stderr, "ELF format not supported on this platform\n");
@@ -180,6 +181,7 @@ int extract_macho_buildinfo(FILE *f) {
     }
     
     fprintf(stderr, "No __buildinfo section found in binary\n");
+    fprintf(stderr, "This binary was not compiled with buildinfo support.\n");
     return 1;
 #else
     fprintf(stderr, "Mach-O format not supported on this platform\n");
@@ -225,6 +227,7 @@ int main(int argc, char *argv[]) {
 #endif
     
     fprintf(stderr, "Unknown or unsupported binary format\n");
+    fprintf(stderr, "File may not be a compiled binary, or was compiled without buildinfo support.\n");
     fclose(f);
     return 1;
 }

@@ -1,7 +1,11 @@
 # buildinfo.mk - Build metadata generation
 # Include this file in your Makefile and call 'generate-buildinfo' target
 
-# Format: NAME@REV[.dirty]-YYYYMMDDTHHMMSSZ
+# New version format:
+# Without git: VERSION@TIMESTAMP
+# With git: VERSION@branch-revision-timestamp
+# With git, dirty tree: VERSION@branch-HEAD-timestamp (or 'detached' if no branch)
+# If -DRELEASE_VERSION specified: VERSION only
 
 FALLBACK_NAME ?= unknown
 FALLBACK_REV  ?= unknown
@@ -9,35 +13,45 @@ VERSION_FILE ?= VERSION
 
 INSIDE_WT := $(shell command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree 2>/dev/null || echo false)
 
-ifeq ($(INSIDE_WT),true)
-# Use VERSION file if it exists, otherwise use git branch name
+# Read base version from VERSION file
 ifneq ($(wildcard $(VERSION_FILE)),)
-  NAME  := $(shell cat $(VERSION_FILE))@
+  BASE_VERSION := $(shell cat $(VERSION_FILE))
 else
-  NAME  := $(shell git symbolic-ref --short -q HEAD || git describe --tags --exact-match 2>/dev/null || echo detached)@
+  BASE_VERSION := $(FALLBACK_NAME)
 endif
-REV   := $(shell git rev-parse --short=8 HEAD)
-REV_FULL := $(shell git rev-parse HEAD)
-DIRTY := $(shell test -n "$$(git status --porcelain 2>/dev/null)" && echo ".dirty")-
-DIRTY_FLAG := $(shell test -n "$$(git status --porcelain 2>/dev/null)" && echo "true" || echo "false")
-ifneq ($(DIRTY),)
-  TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
+
+# Check if RELEASE_VERSION is defined (via -DRELEASE_VERSION in CFLAGS or as make variable)
+ifdef RELEASE_VERSION
+  GITVER := $(BASE_VERSION)
+  BRANCH_NAME := release
+  REV := $(BASE_VERSION)
+  REV_FULL := $(BASE_VERSION)
+  DIRTY_FLAG := false
+  TIMESTAMP := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+else ifeq ($(INSIDE_WT),true)
+  # Inside git repository
+  BRANCH_NAME := $(shell git symbolic-ref --short -q HEAD 2>/dev/null || echo detached)
+  REV_FULL := $(shell git rev-parse HEAD)
+  DIRTY_FLAG := $(shell test -n "$$(git status --porcelain 2>/dev/null)" && echo "true" || echo "false")
+  TIMESTAMP := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+  ifeq ($(DIRTY_FLAG),true)
+    # Dirty tree: VERSION@branch-HEAD-timestamp
+    REV := HEAD
+    GITVER := $(BASE_VERSION)@$(BRANCH_NAME)-HEAD-$(TIMESTAMP)
+  else
+    # Clean tree: VERSION@branch-revision-timestamp
+    REV := $(shell git rev-parse --short=8 HEAD)
+    GITVER := $(BASE_VERSION)@$(BRANCH_NAME)-$(REV)-$(TIMESTAMP)
+  endif
 else
-  TIMESTAMP := $(shell git log -1 --format=%cd --date=format:%Y%m%dT%H%M%SZ 2>/dev/null || date -u +%Y%m%dT%H%M%SZ)
-endif
-GITVER := $(NAME)$(REV)$(DIRTY)$(TIMESTAMP)
-else
-TIMESTAMP := $(shell date -u +%Y%m%dT%H%M%SZ)
-REV := $(FALLBACK_REV)
-REV_FULL := $(FALLBACK_REV)
-DIRTY_FLAG := unknown
-# Use VERSION file if it exists, otherwise use fallback name
-ifneq ($(wildcard $(VERSION_FILE)),)
-  NAME := $(shell cat $(VERSION_FILE))
-else
-  NAME := $(FALLBACK_NAME)
-endif
-GITVER := $(NAME)@$(FALLBACK_REV)-$(TIMESTAMP)
+  # Not in git repository: VERSION@TIMESTAMP
+  BRANCH_NAME := unknown
+  REV := unknown
+  REV_FULL := unknown
+  DIRTY_FLAG := unknown
+  TIMESTAMP := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+  GITVER := $(BASE_VERSION)@$(TIMESTAMP)
 endif
 
 # Capture build environment metadata
@@ -63,7 +77,7 @@ generate-buildinfo:
 	@echo "#include <stdio.h>" >> $(BUILDDIR)/buildinfo.c
 	@echo "#include <string.h>" >> $(BUILDDIR)/buildinfo.c
 	@echo "" >> $(BUILDDIR)/buildinfo.c
-	@echo "const char *build_base_version = \"$(shell cat $(VERSION_FILE))\";" >> $(BUILDDIR)/buildinfo.c
+	@echo "const char *build_base_version = \"$(BASE_VERSION)\";" >> $(BUILDDIR)/buildinfo.c
 	@echo "const char *build_full_version = \"$(GITVER)\";" >> $(BUILDDIR)/buildinfo.c
 	@echo "const char *build_commit_short = \"$(REV)\";" >> $(BUILDDIR)/buildinfo.c
 	@echo "const char *build_commit_full = \"$(REV_FULL)\";" >> $(BUILDDIR)/buildinfo.c
@@ -83,7 +97,7 @@ generate-buildinfo:
 	@printf "#endif\n" >> $(BUILDDIR)/buildinfo.c
 	@echo "__attribute__((used))" >> $(BUILDDIR)/buildinfo.c
 	@echo "const char build_metadata[] =" >> $(BUILDDIR)/buildinfo.c
-	@printf "    \"base_version=$(shell cat $(VERSION_FILE))\\\\n\"\n" >> $(BUILDDIR)/buildinfo.c
+	@printf "    \"base_version=$(BASE_VERSION)\\\\n\"\n" >> $(BUILDDIR)/buildinfo.c
 	@printf "    \"full_version=$(GITVER)\\\\n\"\n" >> $(BUILDDIR)/buildinfo.c
 	@printf "    \"commit=$(REV_FULL)\\\\n\"\n" >> $(BUILDDIR)/buildinfo.c
 	@printf "    \"commit_short=$(REV)\\\\n\"\n" >> $(BUILDDIR)/buildinfo.c

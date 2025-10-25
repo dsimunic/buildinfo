@@ -36,17 +36,28 @@ make
 sudo make install
 ```
 
-This installs:
-- `buildinfo` - Setup tool for projects
-- `extract-buildinfo` - Metadata extraction utility
-
 ### Create a New Project
 
 ```bash
-buildinfo setup myproject
-cd myproject
-make
-./bin/myapp --version
+> buildinfo setup myproject
+==> Setting up new C project in myproject
+==> Creating project files...
+==> Project created successfully!
+==> Next steps:
+==>   cd myproject
+==>   make
+==>   ./bin/myproject --version
+> cd myproject/ && make && bin/myproject --version
+gcc -Wall -Wextra -Werror -std=c99 -O2 -c src/main.c -o build/main.o
+gcc -Wall -Wextra -Werror -std=c99 -O2 -c build/buildinfo.c -o build/buildinfo.o
+gcc build/main.o build/buildinfo.o -o bin/myproject
+Version: 0.1.0@2025-10-25T17:34:26Z
+  Base version: 0.1.0
+  Commit: unknown
+  Built: 2025-10-25T17:34:26Z
+  Compiler: Apple clang version 17.0.0 (clang-1700.3.19.1)
+  Platform: Darwin/arm64
+
 ```
 
 This creates a complete C project skeleton with version tracking built in.
@@ -108,16 +119,16 @@ $(BUILDDIR)/buildinfo.o: $(BUILDINFO_SRC)
 
 ### Extracting Metadata
 
-You can read build metadata without running the binary:
+You can read build metadata from a compiled binary without running it using the `buildinfo get` command:
 
 ```bash
-extract-buildinfo ./bin/myapp
+buildinfo get ./bin/myapp
 ```
 
 Output:
 ```
 base_version=1.0.0
-full_version=main@a1b2c3d4-20251012T143052Z
+full_version=1.0.0@main-a1b2c3d4-2025-10-12T14:30:52Z
 commit=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0
 commit_short=a1b2c3d4
 timestamp=2025-10-12T14:30:52Z
@@ -128,6 +139,8 @@ build_os=Darwin
 build_arch=arm64
 compiler=Apple clang version 15.0.0
 ```
+
+You can also use the `extract-buildinfo` utility directly if needed.
 
 ### Native Tools
 
@@ -150,21 +163,92 @@ otool -s __TEXT __buildinfo ./bin/myapp | tail -n +3 | xxd -r
 
 ## Version Format
 
-The full version string follows this format:
+The full version string format depends on your build environment:
 
+**Without git repository:**
 ```
-NAME@REV[.dirty]-TIMESTAMP
+VERSION@TIMESTAMP
 ```
+Example: `0.1.0@2025-10-25T17:34:26Z`
 
+**With git (clean working tree):**
+```
+VERSION@branch-revision-timestamp
+```
+Example: `0.1.0@main-a1b2c3d4-2025-10-12T14:30:52Z`
+
+**With git (dirty working tree):**
+```
+VERSION@branch-HEAD-timestamp
+```
 Examples:
-- `main@a1b2c3d4-20251012T143052Z` - Clean build from main branch
-- `feature@b2c3d4e5.dirty-20251012T150530Z` - Dirty build from feature branch
-- `v1.0.0@c3d4e5f6-20251012T160045Z` - Build from tag
-- `detached@d4e5f6g7-20251012T170830Z` - Detached HEAD state
+- `0.1.0@main-HEAD-2025-10-12T15:05:30Z` - Dirty build from main branch
+- `0.1.0@feature-branch-HEAD-2025-10-12T16:00:45Z` - Dirty build from feature branch
+- `0.1.0@detached-HEAD-2025-10-12T17:08:30Z` - Dirty build with detached HEAD
 
-Outside git repositories, it falls back to:
+**Release builds (with RELEASE_VERSION flag):**
 ```
-unknown@unknown-TIMESTAMP
+VERSION
+```
+Example: `1.0.0`
+
+To create a release build, pass `RELEASE_VERSION=1` to make:
+```bash
+make RELEASE_VERSION=1
+```
+
+### Practical Example
+
+Here's how the version string changes as you develop:
+
+**1. Initial build without git:**
+```bash
+$ buildinfo setup demo && cd demo && make
+$ ./bin/demo --version
+Version: 0.1.0@2025-10-25T17:59:14Z
+  Base version: 0.1.0
+  Commit: unknown
+```
+
+**2. After initializing git and committing:**
+```bash
+$ git init && git add . && git commit -m "Initial commit"
+$ make clean && make
+$ ./bin/demo --version
+Version: 0.1.0@main-96cddf9d-2025-10-25T17:59:19Z
+  Base version: 0.1.0
+  Commit: 96cddf9db30aeda2c82e1ecf85f8e3165a2e22c0
+```
+
+**3. After making uncommitted changes:**
+```bash
+$ echo "// changes" >> src/main.c
+$ make clean && make
+$ ./bin/demo --version
+Version: 0.1.0@main-HEAD-2025-10-25T18:00:30Z
+  Base version: 0.1.0
+  Commit: 96cddf9db30aeda2c82e1ecf85f8e3165a2e22c0
+  (built from dirty working tree)
+```
+
+**4. Building a release:**
+```bash
+$ git add . && git commit -m "Ready for release"
+$ make clean && make RELEASE_VERSION=1
+$ ./bin/demo --version
+Version: 0.1.0
+  Base version: 0.1.0
+  Commit: 0.1.0
+```
+
+**5. Extracting metadata without running:**
+```bash
+$ buildinfo get ./bin/demo
+base_version=0.1.0
+full_version=0.1.0
+commit=0.1.0
+timestamp=2025-10-25T18:01:15Z
+dirty=false
 ```
 
 ## Available Metadata Variables
