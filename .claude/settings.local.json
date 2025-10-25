@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//tmp/test-example/build/**)"
-    ],
-    "deny": [],
-    "ask": []
-  }
-}
