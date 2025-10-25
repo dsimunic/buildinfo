@@ -26,7 +26,7 @@ all: $(TARGET)
 
 # Generate buildinfo.c before compiling
 $(BUILDINFO_SRC): buildinfo.mk $(VERSION_FILE)
-	$(MAKE) -f buildinfo.mk generate-buildinfo \
+	@$(MAKE) -f buildinfo.mk generate-buildinfo \
 		BUILDDIR=$(BUILDDIR) \
 		VERSION_FILE=$(VERSION_FILE) \
 		CC=$(CC)
