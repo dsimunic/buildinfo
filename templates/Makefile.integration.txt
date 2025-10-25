@@ -1,0 +1,43 @@
+Add the following to your Makefile:
+
+1. Near the top, include buildinfo.mk:
+   
+   include buildinfo.mk
+
+2. Define VERSION_FILE if not already defined:
+
+   VERSION_FILE = VERSION
+
+3. Add buildinfo source and object to your build:
+
+   BUILDINFO_SRC = $(BUILDDIR)/buildinfo.c
+   OBJECTS = $(BUILDDIR)/yourfile.o $(BUILDDIR)/buildinfo.o
+
+4. Add rule to generate buildinfo.c:
+
+   $(BUILDINFO_SRC): buildinfo.mk $(VERSION_FILE)
+   	$(MAKE) -f buildinfo.mk generate-buildinfo \
+   		BUILDDIR=$(BUILDDIR) \
+   		VERSION_FILE=$(VERSION_FILE) \
+   		CC=$(CC)
+
+5. Add rule to compile buildinfo.o:
+
+   $(BUILDDIR)/buildinfo.o: $(BUILDINFO_SRC)
+   	$(CC) $(CFLAGS) -c $< -o $@
+
+6. In your source files that need version info:
+
+   #include "buildinfo.h"
+   
+   // For -V flag:
+   printf("%s\n", build_base_version);
+   
+   // For --version flag:
+   print_version_info();
+
+7. Optional: Add a version target to print current version:
+
+   .PHONY: version
+   version:
+   	@$(MAKE) -f buildinfo.mk print-version

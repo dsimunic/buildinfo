@@ -1,0 +1,11 @@
+extract-buildinfo
+test-tmp/
+*.o
+*.a
+*.so
+*.dylib
+build/
+bin/
+build/
+bin/
+example/
