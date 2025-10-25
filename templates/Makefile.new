@@ -7,14 +7,18 @@ BUILDDIR = build
 BINDIR = bin
 
 # Files
+TARGET_FILE=myapp
 SOURCES = $(SRCDIR)/main.c
 BUILDINFO_SRC = $(BUILDDIR)/buildinfo.c
 OBJECTS = $(BUILDDIR)/main.o $(BUILDDIR)/buildinfo.o
-TARGET = $(BINDIR)/myapp
+TARGET = $(BINDIR)/$(TARGET_FILE)
 VERSION_FILE = VERSION
 
 # Include buildinfo.mk for version generation
 include buildinfo.mk
+
+# Ensure 'all' is the default target (must be set after include)
+.DEFAULT_GOAL := all
 
 .PHONY: all clean
 
