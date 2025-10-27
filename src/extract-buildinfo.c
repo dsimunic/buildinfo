@@ -67,10 +67,13 @@ int extract_elf_buildinfo(FILE *f) {
         return 1;
     }
     
-    // Find .buildinfo section
+    // Find .buildinfo and .sbom sections
+    int found_buildinfo = 0;
+    int found_sbom = 0;
+
     for (int i = 0; i < ehdr.e_shnum; i++) {
         char *name = strtab + sections[i].sh_name;
-        if (strcmp(name, ".buildinfo") == 0) {
+        if (strcmp(name, ".buildinfo") == 0 || strcmp(name, ".sbom") == 0) {
             char *data = malloc(sections[i].sh_size + 1);
             if (!data) {
                 free(strtab);
@@ -78,29 +81,46 @@ int extract_elf_buildinfo(FILE *f) {
                 fprintf(stderr, "Memory allocation failed\n");
                 return 1;
             }
-            
+
             fseek(f, sections[i].sh_offset, SEEK_SET);
             if (fread(data, sections[i].sh_size, 1, f) != 1) {
                 free(data);
                 free(strtab);
                 free(sections);
-                fprintf(stderr, "Failed to read .buildinfo section\n");
+                fprintf(stderr, "Failed to read %s section\n", name);
                 return 1;
             }
-            
+
             data[sections[i].sh_size] = '\0';
             printf("%s", data);
-            
+
+            if (strcmp(name, ".buildinfo") == 0) {
+                found_buildinfo = 1;
+            } else if (strcmp(name, ".sbom") == 0) {
+                found_sbom = 1;
+            }
+
             free(data);
-            free(strtab);
-            free(sections);
-            return 0;
+
+            // Continue searching for both sections
+            if (found_buildinfo && found_sbom) {
+                free(strtab);
+                free(sections);
+                return 0;
+            }
         }
+    }
+
+    // Check if we found at least one section
+    if (found_buildinfo || found_sbom) {
+        free(strtab);
+        free(sections);
+        return 0;
     }
     
     free(strtab);
     free(sections);
-    fprintf(stderr, "No .buildinfo section found in binary\n");
+    fprintf(stderr, "No .buildinfo or .sbom sections found in binary\n");
     fprintf(stderr, "This binary was not compiled with buildinfo support.\n");
     return 1;
 #else
@@ -145,42 +165,63 @@ int extract_macho_buildinfo(FILE *f) {
             }
             
             // Check each section in this segment
+            int found_buildinfo = 0;
+            int found_sbom = 0;
+
+            // First pass: find both sections
             for (uint32_t j = 0; j < seg.nsects; j++) {
                 struct section_64 sect;
-                
+
                 if (fread(&sect, sizeof(sect), 1, f) != 1) {
                     fprintf(stderr, "Failed to read section\n");
                     return 1;
                 }
-                
-                if (strcmp(sect.sectname, "__buildinfo") == 0) {
+
+                if (strcmp(sect.sectname, "__buildinfo") == 0 || strcmp(sect.sectname, "__sbom") == 0) {
                     char *data = malloc(sect.size + 1);
                     if (!data) {
                         fprintf(stderr, "Memory allocation failed\n");
                         return 1;
                     }
 
+                    long saved_pos = ftell(f);
                     fseek(f, sect.offset, SEEK_SET);
-                    
+
                     if (fread(data, sect.size, 1, f) != 1) {
                         free(data);
-                        fprintf(stderr, "Failed to read __buildinfo section\n");
+                        fprintf(stderr, "Failed to read %s section\n", sect.sectname);
                         return 1;
                     }
-                    
+
                     data[sect.size] = '\0';
                     printf("%s", data);
-                    
+
+                    if (strcmp(sect.sectname, "__buildinfo") == 0) {
+                        found_buildinfo = 1;
+                    } else if (strcmp(sect.sectname, "__sbom") == 0) {
+                        found_sbom = 1;
+                    }
+
                     free(data);
-                    return 0;
+                    fseek(f, saved_pos, SEEK_SET);
+
+                    // Return if we found both sections
+                    if (found_buildinfo && found_sbom) {
+                        return 0;
+                    }
                 }
+            }
+
+            // If we found at least one section, return success
+            if (found_buildinfo || found_sbom) {
+                return 0;
             }
         }
         
         fseek(f, pos + lc.cmdsize, SEEK_SET);
     }
     
-    fprintf(stderr, "No __buildinfo section found in binary\n");
+    fprintf(stderr, "No __buildinfo or __sbom sections found in binary\n");
     fprintf(stderr, "This binary was not compiled with buildinfo support.\n");
     return 1;
 #else

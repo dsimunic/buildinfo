@@ -20,4 +20,17 @@ extern const char build_metadata[];
 /* Helper function to print detailed version info */
 void print_version_info(void);
 
+/* SBOM metadata - generated at compile time by buildinfo.mk */
+extern const char *sbom_package_name;
+extern const char *sbom_spdx_license;
+extern const char *sbom_supplier;
+extern const char *sbom_homepage;
+extern const char *sbom_dependencies;
+
+/* SBOM metadata in custom ELF/Mach-O section */
+extern const char sbom_metadata[];
+
+/* Helper function to print SBOM info */
+void print_sbom_info(void);
+
 #endif /* BUILDINFO_H */

@@ -179,7 +179,7 @@ The `bin/buildinfo` shell script provides:
 
 ## Extension Points
 
-To add new metadata (like SBOM):
+To add new metadata, follow the existing patterns:
 
 1. Add variables to buildinfo.mk (compute/collect data)
 2. Add to C variable generation in `generate-buildinfo` target
@@ -188,6 +188,10 @@ To add new metadata (like SBOM):
 5. Optionally extend extract-buildinfo to parse new section
 
 The system is designed to be extended by following the existing patterns for build metadata.
+
+### Built-in Extensions
+
+**SBOM Support**: buildinfo includes built-in support for Software Bill of Materials (SBOM) metadata following the SPDX 2.3 format. SBOM data is embedded alongside build metadata in a separate `.sbom` (Linux) or `__sbom` (macOS) section. This can be extracted using `buildinfo get --sbom <binary>` or with the `extract-buildinfo` utility.
 
 ## Dependencies
 

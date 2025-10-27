@@ -1,0 +1,7 @@
+# SBOM Configuration for buildinfo
+# This file is optional - if present, buildinfo.mk will use these values
+# Otherwise, defaults are used
+
+SBOM_PACKAGE_NAME=buildinfo
+SBOM_SPDX_LICENSE=Unlicense
+SBOM_SUPPLIER=Organization: buildinfo contributors

@@ -122,7 +122,11 @@ $(BUILDDIR)/buildinfo.o: $(BUILDINFO_SRC)
 You can read build metadata from a compiled binary without running it using the `buildinfo get` command:
 
 ```bash
+# Get all metadata including SBOM
 buildinfo get ./bin/myapp
+
+# Get only SBOM information
+buildinfo get --sbom ./bin/myapp
 ```
 
 Output:
@@ -138,6 +142,18 @@ build_user=username
 build_os=Darwin
 build_arch=arm64
 compiler=Apple clang version 15.0.0
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: myapp-sbom
+DocumentNamespace: https://example.org/sbom/myapp-1.0.0
+Creator: Tool: buildinfo
+Created: 2025-10-12T14:30:52Z
+PackageName: myapp
+SPDXID: SPDXRef-Package
+PackageVersion: 1.0.0
+PackageSupplier: Organization: Unknown
+PackageLicenseDeclared: NOASSERTION
 ```
 
 You can also use the `extract-buildinfo` utility directly if needed.
@@ -266,6 +282,17 @@ dirty=false
 | `build_os` | Operating system (from uname -s) |
 | `build_arch` | CPU architecture (from uname -m) |
 | `build_compiler` | Compiler version string |
+
+### SBOM Variables
+
+| Variable | Description |
+|----------|-------------|
+| `sbom_package_name` | Package name for SBOM |
+| `sbom_spdx_license` | SPDX license identifier |
+| `sbom_supplier` | Package supplier/organization |
+| `sbom_homepage` | Package homepage URL |
+| `sbom_dependencies` | Package dependencies |
+| `sbom_metadata[]` | Full SPDX-format SBOM in custom section |
 
 ## Project Structure
 
