@@ -9,10 +9,11 @@ BINDIR = $(PREFIX)/bin
 EXTRACT_SRC = src/extract-buildinfo.c
 EXTRACT_BIN = extract-buildinfo
 BUILDDIR ?= build
+BUILDINFO_SCRIPT = $(BUILDDIR)/buildinfo
 
 .PHONY: all install clean test
 
-all: $(EXTRACT_BIN)
+all: $(EXTRACT_BIN) $(BUILDINFO_SCRIPT)
 
 include buildinfo.mk
 
@@ -34,16 +35,21 @@ $(BUILDDIR)/extract-buildinfo.o: $(EXTRACT_SRC)
 $(EXTRACT_BIN): $(BUILDDIR)/extract-buildinfo.o $(BUILDDIR)/buildinfo.o
 	$(CC) $(BUILDDIR)/extract-buildinfo.o $(BUILDDIR)/buildinfo.o -o $@
 
+$(BUILDINFO_SCRIPT): bin/buildinfo $(VERSION_FILE)
+	@mkdir -p $(BUILDDIR)
+	@sed 's/@@VERSION@@/$(shell cat $(VERSION_FILE))/' bin/buildinfo > $@
+	@chmod +x $@
+
 install: all
 	install -d "$(HOME)/.local/bin"
-	install -m 755 bin/buildinfo "$(HOME)/.local/bin"
+	install -m 755 $(BUILDINFO_SCRIPT) "$(HOME)/.local/bin/buildinfo"
 	install -m 755 $(EXTRACT_BIN) "$(HOME)/.local/bin/extract-buildinfo"
 	install -d "$(HOME)/.local/share/buildinfo"
 	install -m 644 templates/* "$(HOME)/.local/share/buildinfo"
 
 install-global: all
 	install -d $(BINDIR)
-	install -m 755 bin/buildinfo $(BINDIR)/buildinfo
+	install -m 755 $(BUILDINFO_SCRIPT) $(BINDIR)/buildinfo
 	install -m 755 $(EXTRACT_BIN) $(BINDIR)/extract-buildinfo
 	install -d $(PREFIX)/share/buildinfo
 	install -m 644 templates/* $(PREFIX)/share/buildinfo
@@ -72,7 +78,7 @@ version:
 test: all
 	@echo "Running buildinfo test..."
 	@mkdir -p test-tmp
-	@./buildinfo setup test-tmp
+	@$(BUILDINFO_SCRIPT) setup test-tmp
 	@echo ""
 	@echo "Building test project..."
 	@cd test-tmp && make
